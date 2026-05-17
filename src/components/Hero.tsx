@@ -3,17 +3,41 @@ import { motion } from 'framer-motion'
 import CountdownTimer from './CountdownTimer'
 
 const NAME = 'Jesse'
-
+const COLORS = ['#c9a84c','#e879f9','#60a5fa','#34d399','#fb923c']
 const floatingWords = ['🎂', '🥂', '✨', '🎊', '🎶', '💛']
 
 export default function Hero() {
   const [lettersVisible, setLettersVisible] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const [autoColorIndex, setAutoColorIndex] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setLettersVisible(true), 400)
     return () => clearTimeout(t)
   }, [])
+
+  // Detect touch device
+  useEffect(() => {
+    setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0)
+  }, [])
+
+  // Auto-cycle colors on mobile
+  useEffect(() => {
+    if (!isMobile) return
+    const interval = setInterval(() => {
+      setAutoColorIndex(i => (i + 1) % COLORS.length)
+    }, 800)
+    return () => clearInterval(interval)
+  }, [isMobile])
+
+  const getLetterColor = (i: number) => {
+    if (isMobile) {
+      // Each letter offset by one step in the cycle for a wave effect
+      return COLORS[(autoColorIndex + i) % COLORS.length]
+    }
+    return hovered ? COLORS[i % COLORS.length] : '#f0e6d3'
+  }
 
   const scrollDown = () =>
     document.getElementById('details')?.scrollIntoView({ behavior: 'smooth' })
@@ -90,22 +114,25 @@ export default function Hero() {
           className="font-playfair italic font-bold leading-none"
           style={{ fontSize: 'clamp(4.5rem, 16vw, 12rem)', color: '#f0e6d3' }}
           aria-label={NAME}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
+          onMouseEnter={() => !isMobile && setHovered(true)}
+          onMouseLeave={() => !isMobile && setHovered(false)}
         >
           {[...NAME].map((char, i) => (
             <motion.span
               key={i}
               className="inline-block cursor-default"
+              animate={{
+                color: getLetterColor(i),
+                textShadow: (hovered || isMobile)
+                  ? `0 0 40px ${getLetterColor(i)}`
+                  : 'none',
+              }}
+              transition={{ duration: 0.4 }}
               style={{
                 opacity: lettersVisible ? 1 : 0,
                 transform: lettersVisible ? 'translateY(0) rotate(0deg)' : 'translateY(80px) rotate(5deg)',
                 transition: `opacity 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 140 + 100}ms,
                              transform 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 140 + 100}ms`,
-                color: hovered
-                  ? ['#c9a84c','#e879f9','#60a5fa','#34d399','#fb923c'][i % 5]
-                  : '#f0e6d3',
-                textShadow: hovered ? '0 0 40px currentColor' : 'none',
               }}
             >
               {char}
