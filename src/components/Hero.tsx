@@ -17,12 +17,10 @@ export default function Hero() {
     return () => clearTimeout(t)
   }, [])
 
-  // Detect touch device
   useEffect(() => {
     setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0)
   }, [])
 
-  // Auto-cycle colors on mobile
   useEffect(() => {
     if (!isMobile) return
     const interval = setInterval(() => {
@@ -32,10 +30,7 @@ export default function Hero() {
   }, [isMobile])
 
   const getLetterColor = (i: number) => {
-    if (isMobile) {
-      // Each letter offset by one step in the cycle for a wave effect
-      return COLORS[(autoColorIndex + i) % COLORS.length]
-    }
+    if (isMobile) return COLORS[(autoColorIndex + i) % COLORS.length]
     return hovered ? COLORS[i % COLORS.length] : '#f0e6d3'
   }
 
@@ -95,7 +90,8 @@ export default function Hero() {
       ))}
 
       <div className="relative z-10 flex flex-col items-center gap-5">
-        {/* YOU'RE INVITED */}
+
+        {/* YOU'RE INVITED TO */}
         <motion.div
           initial={{ opacity: 0, letterSpacing: '0.5em' }}
           animate={{ opacity: 1, letterSpacing: '0.2em' }}
@@ -105,7 +101,7 @@ export default function Hero() {
             className="text-gold-shimmer font-playfair font-black tracking-[0.2em] leading-none"
             style={{ fontSize: 'clamp(1.4rem, 5vw, 4.5rem)' }}
           >
-            YOU'RE INVITED
+            YOU'RE INVITED TO
           </h2>
         </motion.div>
 
@@ -113,7 +109,7 @@ export default function Hero() {
         <h1
           className="font-playfair italic font-bold leading-none"
           style={{ fontSize: 'clamp(4.5rem, 16vw, 12rem)', color: '#f0e6d3' }}
-          aria-label={NAME}
+          aria-label="Jesse's Birthday"
           onMouseEnter={() => !isMobile && setHovered(true)}
           onMouseLeave={() => !isMobile && setHovered(false)}
         >
@@ -130,7 +126,9 @@ export default function Hero() {
               transition={{ duration: 0.4 }}
               style={{
                 opacity: lettersVisible ? 1 : 0,
-                transform: lettersVisible ? 'translateY(0) rotate(0deg)' : 'translateY(80px) rotate(5deg)',
+                transform: lettersVisible
+                  ? 'translateY(0) rotate(0deg)'
+                  : 'translateY(80px) rotate(5deg)',
                 transition: `opacity 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 140 + 100}ms,
                              transform 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 140 + 100}ms`,
               }}
@@ -139,6 +137,17 @@ export default function Hero() {
             </motion.span>
           ))}
         </h1>
+
+        {/* 's Birthday */}
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.9, duration: 0.8 }}
+          className="font-cormorant italic text-cream/70"
+          style={{ fontSize: 'clamp(1.2rem, 3vw, 2rem)', marginTop: '-0.5rem' }}
+        >
+          's Birthday 🎂
+        </motion.p>
 
         {/* Turning 26 badge */}
         <motion.div
@@ -217,7 +226,7 @@ export default function Hero() {
         </motion.button>
       </div>
 
-      {/* Scroll chevrons */}
+      {/* Scroll chevron */}
       <motion.button
         onClick={scrollDown}
         className="absolute bottom-8 left-1/2 -translate-x-1/2 opacity-30 hover:opacity-60 transition-opacity"
