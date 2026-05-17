@@ -105,49 +105,68 @@ export default function Hero() {
           </h2>
         </motion.div>
 
-        {/* Jesse name */}
-        <h1
-          className="font-playfair italic font-bold leading-none"
-          style={{ fontSize: 'clamp(4.5rem, 16vw, 12rem)', color: '#f0e6d3' }}
-          aria-label="Jesse's Birthday"
-          onMouseEnter={() => !isMobile && setHovered(true)}
-          onMouseLeave={() => !isMobile && setHovered(false)}
-        >
-          {[...NAME].map((char, i) => (
+        {/* Jesse's — name + 's on same line, Birthday below */}
+        <div className="flex flex-col items-center leading-none">
+          <h1
+            className="font-playfair italic font-bold leading-none"
+            style={{ fontSize: 'clamp(4.5rem, 16vw, 12rem)', color: '#f0e6d3' }}
+            aria-label="Jesse's Birthday"
+            onMouseEnter={() => !isMobile && setHovered(true)}
+            onMouseLeave={() => !isMobile && setHovered(false)}
+          >
+            {[...NAME].map((char, i) => (
+              <motion.span
+                key={i}
+                className="inline-block cursor-default"
+                animate={{
+                  color: getLetterColor(i),
+                  textShadow: (hovered || isMobile)
+                    ? `0 0 40px ${getLetterColor(i)}`
+                    : 'none',
+                }}
+                transition={{ duration: 0.4 }}
+                style={{
+                  opacity: lettersVisible ? 1 : 0,
+                  transform: lettersVisible
+                    ? 'translateY(0) rotate(0deg)'
+                    : 'translateY(80px) rotate(5deg)',
+                  transition: `opacity 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 140 + 100}ms,
+                               transform 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 140 + 100}ms`,
+                }}
+              >
+                {char}
+              </motion.span>
+            ))}
             <motion.span
-              key={i}
               className="inline-block cursor-default"
               animate={{
-                color: getLetterColor(i),
+                color: getLetterColor(0),
                 textShadow: (hovered || isMobile)
-                  ? `0 0 40px ${getLetterColor(i)}`
+                  ? `0 0 40px ${getLetterColor(0)}`
                   : 'none',
               }}
               transition={{ duration: 0.4 }}
               style={{
                 opacity: lettersVisible ? 1 : 0,
-                transform: lettersVisible
-                  ? 'translateY(0) rotate(0deg)'
-                  : 'translateY(80px) rotate(5deg)',
-                transition: `opacity 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 140 + 100}ms,
-                             transform 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 140 + 100}ms`,
+                transform: lettersVisible ? 'translateY(0)' : 'translateY(80px)',
+                transition: `opacity 0.7s cubic-bezier(0.34,1.56,0.64,1) ${NAME.length * 140 + 100}ms,
+                             transform 0.7s cubic-bezier(0.34,1.56,0.64,1) ${NAME.length * 140 + 100}ms`,
               }}
             >
-              {char}
+              's
             </motion.span>
-          ))}
-        </h1>
+          </h1>
 
-        {/* 's Birthday */}
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9, duration: 0.8 }}
-          className="font-cormorant italic text-cream/70"
-          style={{ fontSize: 'clamp(1.2rem, 3vw, 2rem)', marginTop: '-0.5rem' }}
-        >
-          's Birthday 🎂
-        </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9, duration: 0.8 }}
+            className="font-cormorant italic text-cream/70 tracking-widest"
+            style={{ fontSize: 'clamp(1.8rem, 6vw, 4rem)', marginTop: '0.1em' }}
+          >
+            Birthday 🎂
+          </motion.p>
+        </div>
 
         {/* Turning 26 badge */}
         <motion.div
