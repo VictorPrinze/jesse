@@ -11,7 +11,7 @@ function Unit({ value, label }: UnitProps) {
     <div className="flex flex-col items-center">
       <span
         className="font-playfair font-black text-gold leading-none tabular-nums"
-        style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)' }}
+        style={{ fontSize: 'clamp(1.5rem, 4vw, 3.5rem)' }}
       >
         {display}
       </span>
@@ -34,13 +34,13 @@ export default function CountdownTimer() {
   }
 
   return (
-    <div className="flex items-center gap-5 flex-wrap justify-center">
+    <div className="flex items-center gap-3 justify-center flex-nowrap">
       <Unit value={days} label="Days" />
-      <span className="text-gold/40 font-playfair text-3xl leading-none mb-4">·</span>
+      <span className="text-gold/40 font-playfair text-2xl leading-none mb-4">·</span>
       <Unit value={hours} label="Hours" />
-      <span className="text-gold/40 font-playfair text-3xl leading-none mb-4">·</span>
+      <span className="text-gold/40 font-playfair text-2xl leading-none mb-4">·</span>
       <Unit value={minutes} label="Minutes" />
-      <span className="text-gold/40 font-playfair text-3xl leading-none mb-4">·</span>
+      <span className="text-gold/40 font-playfair text-2xl leading-none mb-4">·</span>
       <Unit value={seconds} label="Seconds" />
     </div>
   )
