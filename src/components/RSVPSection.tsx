@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
+import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = 'https://otvtxkaojtsyonnyzfnk.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_mv6z4uMeRYAh3YAZyfixCw_0i14zXku'
 const MAX_ATTENDANCE = 50
 const PHONE_DISPLAY = '+44 7777 386639'
 const PHONE_RAW = '+447777386639'
+
+const supabase = createClient( SUPABASE_URL, SUPABASE_ANON_KEY )
 
 async function sbFetch(path: string, options?: RequestInit) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -33,10 +36,24 @@ export default function RSVPSection() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    sbFetch('rsvps?select=id')
-      .then(data => setCount(Array.isArray(data) ? data.length : 0))
-      .catch(() => setCount(0))
+    const fetchCount = async () => {
+      const data = await sbFetch('rsvps?select=id')
+      setCount(Array.isArray(data) ? data.length : 0)
+    }
+    fetchCount()
+    const channel = supabase
+      .channel('rsvp-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rsvps' }, async () => {
+        const data = await sbFetch('rsvps?select=id')
+        setCount(Array.isArray(data) ? data.length : 0)
+      })
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
+  
+  
 
   const spotsLeft = count !== null ? MAX_ATTENDANCE - count : null
   const isFull = spotsLeft !== null && spotsLeft <= 0
