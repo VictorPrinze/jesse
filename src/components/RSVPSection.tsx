@@ -35,23 +35,39 @@ export default function RSVPSection() {
   const [error, setError] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  useEffect(() => {
-    const fetchCount = async () => {
-      const data = await sbFetch('rsvps?select=id')
-      setCount(Array.isArray(data) ? data.length : 0)
-    }
-    fetchCount()
-    const channel = supabase
-      .channel('rsvp-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rsvps' }, async () => {
+  
+useEffect(() => {
+  // Initial fetch
+  const fetchCount = async () => {
+    const data = await sbFetch('rsvps?select=id')
+    setCount(Array.isArray(data) ? data.length : 0)
+  }
+
+  fetchCount()
+
+  // Realtime subscription
+  const channel = supabase
+    .channel('rsvp-realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'rsvps',
+      },
+      async () => {
         const data = await sbFetch('rsvps?select=id')
         setCount(Array.isArray(data) ? data.length : 0)
-      })
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
+      }
+    )
+    .subscribe()
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
+}, [])
+
+
   
   
 
