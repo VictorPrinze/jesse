@@ -1,12 +1,11 @@
 import { useEffect, useState, useRef } from 'react'
-import { motion, useMotionValue, useTransform } from 'framer-motion'
+import { motion } from 'framer-motion'
 import CountdownTimer from './CountdownTimer'
 
 import img1 from '../assets/photos/image1.jpeg'
 import img2 from '../assets/photos/image2.jpeg'
 
 const NAME = "Jesse's"
-const SUBTITLE = "Birthday"
 const COLORS = ['#c9a84c','#e879f9','#60a5fa','#34d399','#fb923c']
 const floatingWords = ['🎂', '🥂', '✨', '🎊', '🎶', '💛']
 
