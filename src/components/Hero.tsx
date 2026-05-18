@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import CountdownTimer from './CountdownTimer'
 
 import img1 from '../assets/photos/image1.jpeg'
@@ -15,6 +15,8 @@ export default function Hero() {
   const [isMobile, setIsMobile] = useState(false)
   const [autoColorIndex, setAutoColorIndex] = useState(0)
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 })
+  const [activeCard, setActiveCard] = useState<number | null>(null)
+  const [tilt, setTilt] = useState({ x: 0, y: 0 })
   const sectionRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -45,6 +47,18 @@ export default function Hero() {
     return () => window.removeEventListener('mousemove', handler)
   }, [])
 
+  // Device tilt for mobile parallax
+  useEffect(() => {
+    if (!isMobile) return
+    const handler = (e: DeviceOrientationEvent) => {
+      const x = Math.max(-1, Math.min(1, (e.gamma ?? 0) / 20))
+      const y = Math.max(-1, Math.min(1, (e.beta ?? 0) / 30))
+      setTilt({ x, y })
+    }
+    window.addEventListener('deviceorientation', handler)
+    return () => window.removeEventListener('deviceorientation', handler)
+  }, [isMobile])
+
   const getLetterColor = (i: number) => {
     if (isMobile) return COLORS[(autoColorIndex + i) % COLORS.length]
     return hovered ? COLORS[i % COLORS.length] : '#f0e6d3'
@@ -53,11 +67,15 @@ export default function Hero() {
   const scrollDown = () =>
     document.getElementById('details')?.scrollIntoView({ behavior: 'smooth' })
 
-  // Parallax offsets based on mouse
-  const img1X = (mousePos.x - 0.5) * -30
-  const img1Y = (mousePos.y - 0.5) * -20
-  const img2X = (mousePos.x - 0.5) * 25
-  const img2Y = (mousePos.y - 0.5) * 15
+  const img1X = isMobile ? tilt.x * 15 : (mousePos.x - 0.5) * -30
+  const img1Y = isMobile ? tilt.y * 10 : (mousePos.y - 0.5) * -20
+  const img2X = isMobile ? tilt.x * -15 : (mousePos.x - 0.5) * 25
+  const img2Y = isMobile ? tilt.y * -10 : (mousePos.y - 0.5) * 15
+
+  const mobileCards = [
+    { src: img1, label: '🎉 Jesse', color: 'rgba(201,168,76,0.5)', glow: 'rgba(201,168,76,0.3)' },
+    { src: img2, label: '🕯️ Vibes', color: 'rgba(232,121,249,0.5)', glow: 'rgba(232,121,249,0.3)' },
+  ]
 
   return (
     <section
@@ -65,7 +83,7 @@ export default function Hero() {
       id="hero"
       className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 py-16 overflow-hidden"
     >
-      {/* ── Background: candle image fills the hero, blurred & dimmed ── */}
+      {/* Background image */}
       <div className="absolute inset-0 z-0">
         <motion.img
           src={img2}
@@ -76,14 +94,12 @@ export default function Hero() {
           animate={{ scale: [1, 1.04, 1] }}
           transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
         />
-        {/* gold-black vignette */}
         <div className="absolute inset-0" style={{
           background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.85) 100%)'
         }} />
       </div>
 
-      {/* ── Floating image cards (parallax) ── */}
-      {/* Money card — bottom left */}
+      {/* ── DESKTOP: floating image cards (parallax) ── */}
       <motion.div
         className="absolute z-10 rounded-2xl overflow-hidden shadow-2xl hidden md:block"
         style={{
@@ -96,11 +112,10 @@ export default function Hero() {
         animate={{ y: [0, -12, 0], rotate: [-3, 1, -3] }}
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
       >
-        <img src={img1} alt="Time to make money" className="w-full h-full object-cover opacity-80" />
+        <img src={img1} alt="Jesse" className="w-full h-full object-cover opacity-80" />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(201,168,76,0.3), transparent)' }} />
       </motion.div>
 
-      {/* Candle card — top right */}
       <motion.div
         className="absolute z-10 rounded-2xl overflow-hidden shadow-2xl hidden md:block"
         style={{
@@ -114,10 +129,7 @@ export default function Hero() {
         transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       >
         <img src={img2} alt="Candle" className="w-full h-full object-cover opacity-90" />
-        <div className="absolute inset-0" style={{
-          background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.5))',
-        }} />
-        {/* Animated flame glow */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.5))' }} />
         <motion.div
           className="absolute inset-0 rounded-2xl"
           animate={{ opacity: [0, 0.4, 0] }}
@@ -125,6 +137,66 @@ export default function Hero() {
           style={{ background: 'radial-gradient(circle at 50% 20%, rgba(255,200,50,0.5), transparent 60%)' }}
         />
       </motion.div>
+
+      {/* ── MOBILE: interactive swipeable photo cards ── */}
+      <div className="flex md:hidden gap-3 absolute top-6 left-0 right-0 px-5 z-10 justify-between">
+        {mobileCards.map((card, idx) => (
+          <motion.div
+            key={idx}
+            className="relative rounded-2xl overflow-hidden flex-1 cursor-pointer"
+            style={{
+              height: 110,
+              border: `1px solid ${card.color}`,
+              boxShadow: activeCard === idx ? `0 0 30px ${card.glow}, 0 8px 32px rgba(0,0,0,0.5)` : `0 0 12px ${card.glow}`,
+              transform: `translate(${idx === 0 ? img1X : img2X}px, ${idx === 0 ? img1Y * 0.5 : img2Y * 0.5}px)`,
+              transition: 'transform 0.15s ease-out, box-shadow 0.3s',
+            }}
+            animate={{
+              y: activeCard === idx ? -8 : [0, idx === 0 ? -6 : 6, 0],
+              rotate: activeCard === idx ? 0 : [idx === 0 ? -2 : 2, idx === 0 ? 1 : -1, idx === 0 ? -2 : 2],
+              scale: activeCard === idx ? 1.06 : 1,
+            }}
+            transition={activeCard === idx
+              ? { duration: 0.3 }
+              : { duration: 4 + idx, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.8 }
+            }
+            onTap={() => setActiveCard(activeCard === idx ? null : idx)}
+          >
+            <img
+              src={card.src}
+              alt={card.label}
+              className="w-full h-full object-cover"
+              style={{ opacity: activeCard === idx ? 1 : 0.75, transition: 'opacity 0.3s' }}
+            />
+            {/* gradient overlay */}
+            <div className="absolute inset-0" style={{
+              background: `linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)`
+            }} />
+            {/* label */}
+            <motion.div
+              className="absolute bottom-0 inset-x-0 px-2 py-2"
+              animate={{ opacity: activeCard === idx ? 1 : 0.6 }}
+            >
+              <p className="font-mono text-[0.6rem] tracking-widest text-white text-center">
+                {card.label}
+              </p>
+            </motion.div>
+            {/* tap ripple */}
+            <AnimatePresence>
+              {activeCard === idx && (
+                <motion.div
+                  initial={{ opacity: 0.6, scale: 0.5 }}
+                  animate={{ opacity: 0, scale: 2 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6 }}
+                  className="absolute inset-0 rounded-2xl"
+                  style={{ background: card.color }}
+                />
+              )}
+            </AnimatePresence>
+          </motion.div>
+        ))}
+      </div>
 
       {/* Radial colour blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
@@ -163,10 +235,10 @@ export default function Hero() {
         </motion.span>
       ))}
 
-      {/* ── MAIN CONTENT ── */}
-      <div className="relative z-20 flex flex-col items-center gap-5">
+      {/* MAIN CONTENT */}
+      <div className="relative z-20 flex flex-col items-center gap-5 mt-28 md:mt-0">
 
-        {/* YOU'RE INVITED */}
+        {/* YOU'RE INVITED TO */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -285,6 +357,16 @@ export default function Hero() {
         >
           See the details ↓
         </motion.button>
+
+        {/* Mobile tap hint */}
+        <motion.p
+          className="md:hidden font-mono text-[0.55rem] tracking-widest text-cream/25 uppercase"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2.5 }}
+        >
+          tap the photos above ↑
+        </motion.p>
       </div>
 
       {/* Scroll chevron */}
