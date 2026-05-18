@@ -1,16 +1,22 @@
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useState, useRef } from 'react'
+import { motion, useMotionValue, useTransform } from 'framer-motion'
 import CountdownTimer from './CountdownTimer'
 
-const NAME = 'Jesse'
+import img1 from '../assets/photos/image1.jpeg'
+import img2 from '../assets/photos/image2.jpeg'
+
+const NAME = "Jesse's"
+const SUBTITLE = "Birthday"
 const COLORS = ['#c9a84c','#e879f9','#60a5fa','#34d399','#fb923c']
 const floatingWords = ['🎂', '🥂', '✨', '🎊', '🎶', '💛']
 
 export default function Hero() {
   const [lettersVisible, setLettersVisible] = useState(false)
   const [hovered, setHovered] = useState(false)
-  const [autoColorIndex, setAutoColorIndex] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
+  const [autoColorIndex, setAutoColorIndex] = useState(0)
+  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 })
+  const sectionRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setLettersVisible(true), 400)
@@ -23,11 +29,22 @@ export default function Hero() {
 
   useEffect(() => {
     if (!isMobile) return
-    const interval = setInterval(() => {
-      setAutoColorIndex(i => (i + 1) % COLORS.length)
-    }, 800)
+    const interval = setInterval(() => setAutoColorIndex(i => (i + 1) % COLORS.length), 800)
     return () => clearInterval(interval)
   }, [isMobile])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!sectionRef.current) return
+      const rect = sectionRef.current.getBoundingClientRect()
+      setMousePos({
+        x: (e.clientX - rect.left) / rect.width,
+        y: (e.clientY - rect.top) / rect.height,
+      })
+    }
+    window.addEventListener('mousemove', handler)
+    return () => window.removeEventListener('mousemove', handler)
+  }, [])
 
   const getLetterColor = (i: number) => {
     if (isMobile) return COLORS[(autoColorIndex + i) % COLORS.length]
@@ -37,175 +54,201 @@ export default function Hero() {
   const scrollDown = () =>
     document.getElementById('details')?.scrollIntoView({ behavior: 'smooth' })
 
+  // Parallax offsets based on mouse
+  const img1X = (mousePos.x - 0.5) * -30
+  const img1Y = (mousePos.y - 0.5) * -20
+  const img2X = (mousePos.x - 0.5) * 25
+  const img2Y = (mousePos.y - 0.5) * 15
+
   return (
     <section
+      ref={sectionRef}
       id="hero"
       className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 py-16 overflow-hidden"
     >
-      {/* Colourful radial blobs */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div style={{
-          position: 'absolute', top: '10%', left: '15%',
-          width: 400, height: 400, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(201,168,76,0.18) 0%, transparent 70%)',
-          filter: 'blur(40px)',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: '15%', right: '10%',
-          width: 350, height: 350, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(180,80,200,0.12) 0%, transparent 70%)',
-          filter: 'blur(50px)',
-        }} />
-        <div style={{
-          position: 'absolute', top: '50%', left: '60%',
-          width: 280, height: 280, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(80,160,255,0.1) 0%, transparent 70%)',
-          filter: 'blur(40px)',
+      {/* ── Background: candle image fills the hero, blurred & dimmed ── */}
+      <div className="absolute inset-0 z-0">
+        <motion.img
+          src={img2}
+          alt=""
+          aria-hidden
+          className="w-full h-full object-cover"
+          style={{ filter: 'blur(2px) brightness(0.25) saturate(1.4)' }}
+          animate={{ scale: [1, 1.04, 1] }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        {/* gold-black vignette */}
+        <div className="absolute inset-0" style={{
+          background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.85) 100%)'
         }} />
       </div>
 
-      {/* Floating emoji confetti */}
+      {/* ── Floating image cards (parallax) ── */}
+      {/* Money card — bottom left */}
+      <motion.div
+        className="absolute z-10 rounded-2xl overflow-hidden shadow-2xl hidden md:block"
+        style={{
+          width: 160, bottom: '18%', left: '5%',
+          border: '1px solid rgba(201,168,76,0.4)',
+          boxShadow: '0 0 40px rgba(201,168,76,0.2)',
+          transform: `translate(${img1X}px, ${img1Y}px)`,
+          transition: 'transform 0.1s ease-out',
+        }}
+        animate={{ y: [0, -12, 0], rotate: [-3, 1, -3] }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <img src={img1} alt="Time to make money" className="w-full h-full object-cover opacity-80" />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(201,168,76,0.3), transparent)' }} />
+      </motion.div>
+
+      {/* Candle card — top right */}
+      <motion.div
+        className="absolute z-10 rounded-2xl overflow-hidden shadow-2xl hidden md:block"
+        style={{
+          width: 140, top: '12%', right: '6%',
+          border: '1px solid rgba(232,121,249,0.4)',
+          boxShadow: '0 0 40px rgba(232,121,249,0.2)',
+          transform: `translate(${img2X}px, ${img2Y}px)`,
+          transition: 'transform 0.1s ease-out',
+        }}
+        animate={{ y: [0, 14, 0], rotate: [2, -2, 2] }}
+        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+      >
+        <img src={img2} alt="Candle" className="w-full h-full object-cover opacity-90" />
+        <div className="absolute inset-0" style={{
+          background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.5))',
+        }} />
+        {/* Animated flame glow */}
+        <motion.div
+          className="absolute inset-0 rounded-2xl"
+          animate={{ opacity: [0, 0.4, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ background: 'radial-gradient(circle at 50% 20%, rgba(255,200,50,0.5), transparent 60%)' }}
+        />
+      </motion.div>
+
+      {/* Radial colour blobs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <motion.div
+          animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.25, 0.15] }}
+          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+          style={{
+            position: 'absolute', top: '10%', left: '15%',
+            width: 400, height: 400, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(201,168,76,0.3) 0%, transparent 70%)',
+            filter: 'blur(40px)',
+          }}
+        />
+        <motion.div
+          animate={{ scale: [1, 1.3, 1], opacity: [0.1, 0.2, 0.1] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+          style={{
+            position: 'absolute', bottom: '15%', right: '10%',
+            width: 350, height: 350, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,140,0,0.25) 0%, transparent 70%)',
+            filter: 'blur(50px)',
+          }}
+        />
+      </div>
+
+      {/* Floating emojis */}
       {floatingWords.map((w, i) => (
         <motion.span
           key={i}
-          className="absolute text-2xl select-none pointer-events-none"
-          style={{
-            left: `${10 + i * 16}%`,
-            top: `${15 + (i % 3) * 20}%`,
-          }}
-          animate={{
-            y: [0, -18, 0],
-            rotate: [0, i % 2 === 0 ? 12 : -12, 0],
-            opacity: [0.4, 0.8, 0.4],
-          }}
-          transition={{
-            duration: 3 + i * 0.5,
-            repeat: Infinity,
-            delay: i * 0.4,
-            ease: 'easeInOut',
-          }}
+          className="absolute text-2xl select-none pointer-events-none z-10"
+          style={{ left: `${8 + i * 15}%`, top: `${12 + (i % 3) * 22}%` }}
+          animate={{ y: [0, -18, 0], rotate: [0, i % 2 === 0 ? 12 : -12, 0], opacity: [0.35, 0.75, 0.35] }}
+          transition={{ duration: 3 + i * 0.5, repeat: Infinity, delay: i * 0.4, ease: 'easeInOut' }}
         >
           {w}
         </motion.span>
       ))}
 
-      <div className="relative z-10 flex flex-col items-center gap-5">
+      {/* ── MAIN CONTENT ── */}
+      <div className="relative z-20 flex flex-col items-center gap-5">
 
-        {/* YOU'RE INVITED TO */}
+        {/* YOU'RE INVITED */}
         <motion.div
-          initial={{ opacity: 0, letterSpacing: '0.5em' }}
-          animate={{ opacity: 1, letterSpacing: '0.2em' }}
-          transition={{ duration: 1.2, delay: 0.1 }}
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.2 }}
         >
           <h2
-            className="text-gold-shimmer font-playfair font-black tracking-[0.2em] leading-none"
-            style={{ fontSize: 'clamp(1.4rem, 5vw, 4.5rem)' }}
+            className="text-gold-shimmer font-playfair font-black tracking-[0.25em] leading-none"
+            style={{ fontSize: 'clamp(1rem, 4vw, 3rem)' }}
           >
             YOU'RE INVITED TO
           </h2>
         </motion.div>
 
-        {/* Jesse's — name + 's on same line, Birthday below */}
-        <div className="flex flex-col items-center leading-none">
-          <h1
-            className="font-playfair italic font-bold leading-none"
-            style={{ fontSize: 'clamp(4.5rem, 16vw, 12rem)', color: '#f0e6d3' }}
-            aria-label="Jesse's Birthday"
-            onMouseEnter={() => !isMobile && setHovered(true)}
-            onMouseLeave={() => !isMobile && setHovered(false)}
-          >
-            {[...NAME].map((char, i) => (
-              <motion.span
-                key={i}
-                className="inline-block cursor-default"
-                animate={{
-                  color: getLetterColor(i),
-                  textShadow: (hovered || isMobile)
-                    ? `0 0 40px ${getLetterColor(i)}`
-                    : 'none',
-                }}
-                transition={{ duration: 0.4 }}
-                style={{
-                  opacity: lettersVisible ? 1 : 0,
-                  transform: lettersVisible
-                    ? 'translateY(0) rotate(0deg)'
-                    : 'translateY(80px) rotate(5deg)',
-                  transition: `opacity 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 140 + 100}ms,
-                               transform 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 140 + 100}ms`,
-                }}
-              >
-                {char}
-              </motion.span>
-            ))}
+        {/* Jesse's */}
+        <h1
+          className="font-playfair italic font-bold leading-none"
+          style={{ fontSize: 'clamp(3.5rem, 14vw, 11rem)', color: '#f0e6d3', lineHeight: 1 }}
+          aria-label="Jesse's Birthday"
+          onMouseEnter={() => !isMobile && setHovered(true)}
+          onMouseLeave={() => !isMobile && setHovered(false)}
+        >
+          {[...NAME].map((char, i) => (
             <motion.span
+              key={i}
               className="inline-block cursor-default"
               animate={{
-                color: getLetterColor(0),
-                textShadow: (hovered || isMobile)
-                  ? `0 0 40px ${getLetterColor(0)}`
-                  : 'none',
+                color: getLetterColor(i),
+                textShadow: (hovered || isMobile) ? `0 0 50px ${getLetterColor(i)}` : '0 0 0px transparent',
               }}
-              transition={{ duration: 0.4 }}
+              transition={{ duration: 0.35 }}
               style={{
                 opacity: lettersVisible ? 1 : 0,
-                transform: lettersVisible ? 'translateY(0)' : 'translateY(80px)',
-                transition: `opacity 0.7s cubic-bezier(0.34,1.56,0.64,1) ${NAME.length * 140 + 100}ms,
-                             transform 0.7s cubic-bezier(0.34,1.56,0.64,1) ${NAME.length * 140 + 100}ms`,
+                transform: lettersVisible ? 'translateY(0) rotate(0deg)' : 'translateY(80px) rotate(5deg)',
+                transition: `opacity 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 120 + 100}ms,
+                             transform 0.7s cubic-bezier(0.34,1.56,0.64,1) ${i * 120 + 100}ms`,
+                display: char === ' ' ? 'inline' : 'inline-block',
               }}
             >
-              's
+              {char === ' ' ? '\u00a0' : char}
             </motion.span>
-          </h1>
+          ))}
+        </h1>
 
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9, duration: 0.8 }}
-            className="font-cormorant italic text-cream/70 tracking-widest"
-            style={{ fontSize: 'clamp(1.8rem, 6vw, 4rem)', marginTop: '0.1em' }}
-          >
-            Birthday 🎂
-          </motion.p>
-        </div>
-
-        {/* Turning 26 badge */}
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 22, repeat: Infinity, ease: 'linear' }}
-          className="relative w-32 h-32 flex items-center justify-center rounded-full"
-          style={{
-            background: 'radial-gradient(circle, rgba(201,168,76,0.15), rgba(180,80,200,0.08))',
-            border: '1px solid rgba(201,168,76,0.6)',
-            boxShadow: '0 0 30px rgba(201,168,76,0.2), inset 0 0 20px rgba(201,168,76,0.05)',
-          }}
+        {/* Birthday */}
+        <motion.p
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1, duration: 0.9 }}
+          className="font-cormorant italic text-cream/80 tracking-widest"
+          style={{ fontSize: 'clamp(2rem, 6vw, 4.5rem)', marginTop: '-0.3em' }}
         >
-          <motion.div
-            animate={{ rotate: -360 }}
-            transition={{ duration: 22, repeat: Infinity, ease: 'linear' }}
-            className="flex flex-col items-center"
-          >
-            <span className="font-playfair font-black text-gold leading-none" style={{ fontSize: '3rem' }}>26</span>
-            <span className="font-mono text-[0.55rem] tracking-[0.2em] text-gold uppercase">Turning</span>
-          </motion.div>
-          <motion.div
-            animate={{ rotate: -360 }}
-            transition={{ duration: 16, repeat: Infinity, ease: 'linear' }}
-            className="absolute inset-[-10px] rounded-full"
-            style={{ border: '1px dashed rgba(201,168,76,0.25)' }}
-          />
+          Birthday 🎂
+        </motion.p>
+
+        {/* Flame divider */}
+        <motion.div
+          initial={{ opacity: 0, scaleX: 0 }}
+          animate={{ opacity: 1, scaleX: 1 }}
+          transition={{ delay: 1.3, duration: 0.8 }}
+          className="flex items-center gap-3"
+        >
+          <div className="h-px w-16" style={{ background: 'linear-gradient(90deg, transparent, #c9a84c)' }} />
+          <motion.span
+            animate={{ scale: [1, 1.3, 1], filter: ['brightness(1)', 'brightness(1.8)', 'brightness(1)'] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            className="text-2xl"
+          >🕯️</motion.span>
+          <div className="h-px w-16" style={{ background: 'linear-gradient(90deg, #c9a84c, transparent)' }} />
         </motion.div>
 
-        {/* Tag line */}
+        {/* Date/venue */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2, duration: 0.8 }}
+          transition={{ delay: 1.4, duration: 0.8 }}
           className="flex flex-col items-center gap-1"
         >
-          <p className="font-mono text-[0.7rem] tracking-[0.25em] uppercase" style={{ color: 'rgba(201,168,76,0.7)' }}>
+          <p className="font-mono text-[0.7rem] tracking-[0.25em] uppercase" style={{ color: 'rgba(201,168,76,0.8)' }}>
             Tuesday · 26th May 2026 · 6 PM
           </p>
-          <p className="font-cormorant italic text-xl" style={{ color: 'rgba(240,230,211,0.5)' }}>
+          <p className="font-cormorant italic text-lg" style={{ color: 'rgba(240,230,211,0.55)' }}>
             34 W Sunniside, Sunderland
           </p>
         </motion.div>
@@ -214,31 +257,31 @@ export default function Hero() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.5, duration: 0.8 }}
-          className="mt-2 px-8 py-5 rounded-2xl"
+          transition={{ delay: 1.7, duration: 0.8 }}
+          className="mt-1 px-8 py-5 rounded-2xl"
           style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(201,168,76,0.2)',
-            backdropFilter: 'blur(10px)',
+            background: 'rgba(0,0,0,0.4)',
+            border: '1px solid rgba(201,168,76,0.25)',
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           }}
         >
           <CountdownTimer />
         </motion.div>
 
-        {/* CTA scroll */}
+        {/* CTA */}
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 2 }}
+          transition={{ delay: 2.1 }}
           onClick={scrollDown}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.97 }}
-          className="mt-2 px-8 py-3 rounded-full font-mono text-sm tracking-widest transition-all"
+          whileHover={{ scale: 1.07, boxShadow: '0 16px 48px rgba(201,168,76,0.5)' }}
+          whileTap={{ scale: 0.96 }}
+          className="mt-1 px-10 py-3 rounded-full font-mono text-sm tracking-widest font-semibold"
           style={{
-            background: 'linear-gradient(135deg, #c9a84c, #e879f9)',
+            background: 'linear-gradient(135deg, #c9a84c, #fb923c, #e879f9)',
             color: '#0a0a0a',
-            fontWeight: 600,
-            boxShadow: '0 8px 32px rgba(201,168,76,0.3)',
+            boxShadow: '0 8px 32px rgba(201,168,76,0.35)',
           }}
         >
           See the details ↓
@@ -248,7 +291,7 @@ export default function Hero() {
       {/* Scroll chevron */}
       <motion.button
         onClick={scrollDown}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 opacity-30 hover:opacity-60 transition-opacity"
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 opacity-30 hover:opacity-60 transition-opacity z-20"
         animate={{ y: [0, 8, 0] }}
         transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         aria-label="Scroll down"
