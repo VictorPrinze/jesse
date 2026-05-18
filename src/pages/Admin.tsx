@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const SUPABASE_URL = 'https://otvtxkaojtsyonnyzfnk.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90dnR4a2FvanRzeW9ubnl6Zm5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc1NTI4MDAsImV4cCI6MjA2MzEyODgwMH0.placeholder'
+const SUPABASE_ANON_KEY = 'sb_publishable_mv6z4uMeRYAh3YAZyfixCw_0i14zXku'
 const ADMIN_PASSWORD = 'jesse26'
 const MAX_ATTENDANCE = 50
 
