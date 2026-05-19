@@ -37,7 +37,6 @@ export default function RSVPSection() {
 
   
 useEffect(() => {
-  // Initial fetch
   const fetchCount = async () => {
     const data = await sbFetch('rsvps?select=id')
     setCount(Array.isArray(data) ? data.length : 0)
@@ -45,7 +44,6 @@ useEffect(() => {
 
   fetchCount()
 
-  // Realtime subscription
   const channel = supabase
     .channel('rsvp-realtime')
     .on(
@@ -55,9 +53,16 @@ useEffect(() => {
         schema: 'public',
         table: 'rsvps',
       },
-      async () => {
-        const data = await sbFetch('rsvps?select=id')
-        setCount(Array.isArray(data) ? data.length : 0)
+      (payload) => {
+        // Use the event type to update count directly — no re-fetch needed
+        if (payload.eventType === 'INSERT') {
+          setCount(c => (c ?? 0) + 1)
+        } else if (payload.eventType === 'DELETE') {
+          setCount(c => Math.max((c ?? 1) - 1, 0))
+        } else {
+          // For UPDATE or any other event, re-fetch to be safe
+          fetchCount()
+        }
       }
     )
     .subscribe()
@@ -66,7 +71,6 @@ useEffect(() => {
     supabase.removeChannel(channel)
   }
 }, [])
-
 
   
   
