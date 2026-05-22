@@ -5,11 +5,12 @@ import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = 'https://otvtxkaojtsyonnyzfnk.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_mv6z4uMeRYAh3YAZyfixCw_0i14zXku'
-const MAX_ATTENDANCE = 50
+const MAX_ATTENDANCE = 25
+const RSVP_DEADLINE = new Date('2026-05-20T23:59:59+01:00')
 const PHONE_DISPLAY = '+44 7777 386639'
 const PHONE_RAW = '+447777386639'
 
-const supabase = createClient( SUPABASE_URL, SUPABASE_ANON_KEY )
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 async function sbFetch(path: string, options?: RequestInit) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -35,52 +36,30 @@ export default function RSVPSection() {
   const [error, setError] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  
-useEffect(() => {
-  const fetchCount = async () => {
-    const data = await sbFetch('rsvps?select=id')
-    setCount(Array.isArray(data) ? data.length : 0)
-  }
+  const isDeadlinePassed = Date.now() > RSVP_DEADLINE.getTime()
+  const isClosed = isDeadlinePassed || (count !== null && count >= MAX_ATTENDANCE)
 
-  fetchCount()
+  useEffect(() => {
+    const fetchCount = async () => {
+      const data = await sbFetch('rsvps?select=id')
+      setCount(Array.isArray(data) ? data.length : 0)
+    }
+    fetchCount()
 
-  const channel = supabase
-    .channel('rsvp-realtime')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'rsvps',
-      },
-      (payload) => {
-        // Use the event type to update count directly — no re-fetch needed
-        if (payload.eventType === 'INSERT') {
-          setCount(c => (c ?? 0) + 1)
-        } else if (payload.eventType === 'DELETE') {
-          setCount(c => Math.max((c ?? 1) - 1, 0))
-        } else {
-          // For UPDATE or any other event, re-fetch to be safe
-          fetchCount()
-        }
-      }
-    )
-    .subscribe()
+    const channel = supabase
+      .channel('rsvp-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rsvps' }, (payload) => {
+        if (payload.eventType === 'INSERT') setCount(c => (c ?? 0) + 1)
+        else if (payload.eventType === 'DELETE') setCount(c => Math.max((c ?? 1) - 1, 0))
+        else fetchCount()
+      })
+      .subscribe()
 
-  return () => {
-    supabase.removeChannel(channel)
-  }
-}, [])
-
-  
-  
-
-  const spotsLeft = count !== null ? MAX_ATTENDANCE - count : null
-  const isFull = spotsLeft !== null && spotsLeft <= 0
-  const isLow = spotsLeft !== null && spotsLeft <= 10 && spotsLeft > 0
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   const handleComing = async () => {
-    if (confirmed || isFull || loading) return
+    if (confirmed || isClosed || loading) return
     if (!name.trim()) { setError('Please enter your name first!'); return }
     setError('')
     setLoading(true)
@@ -90,7 +69,7 @@ useEffect(() => {
       const currentCount = Array.isArray(latest) ? latest.length : 0
       if (currentCount >= MAX_ATTENDANCE) {
         setCount(currentCount)
-        setError("Sorry, we're fully booked! 😢")
+        setError("We're fully booked! 😢")
         setLoading(false)
         return
       }
@@ -148,10 +127,10 @@ useEffect(() => {
           transition={{ delay: 0.3 }}
           className="font-cormorant italic text-cream/55 text-xl mb-8"
         >
-          Jesse's 26th awaits — don't miss a moment.
+          Jesse's 26th awaits — it's going to be a night to remember.
         </motion.p>
 
-        {/* Capacity tracker */}
+        {/* Capacity bar */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -161,165 +140,210 @@ useEffect(() => {
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(201,168,76,0.2)' }}
         >
           <div className="flex justify-between items-center mb-2">
-            <span className="font-mono text-[0.65rem] tracking-widest text-gold uppercase">Spots Taken</span>
+            <span className="font-mono text-[0.65rem] tracking-widest text-gold uppercase">Guest List</span>
             <span className="font-mono text-[0.65rem] tracking-widest text-cream/50">
               {count !== null ? count : '…'} / {MAX_ATTENDANCE}
             </span>
           </div>
-
           <div className="h-2 rounded-full overflow-hidden mb-3" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${pct}%` }}
               transition={{ duration: 1.2, ease: 'easeOut', delay: 0.6 }}
               className="h-full rounded-full"
-              style={{
-                background: isFull
-                  ? 'linear-gradient(90deg, #ef4444, #dc2626)'
-                  : isLow
-                  ? 'linear-gradient(90deg, #fb923c, #f97316)'
-                  : 'linear-gradient(90deg, #c9a84c, #e879f9)',
-              }}
+              style={{ background: 'linear-gradient(90deg, #c9a84c, #e879f9)' }}
             />
           </div>
-
-          <p className="font-cormorant italic text-lg" style={{
-            color: isFull ? '#ef4444' : isLow ? '#fb923c' : 'rgba(240,230,211,0.6)'
-          }}>
-            {isFull
-              ? "We're fully booked! 😢 WhatsApp Jesse to join the waitlist."
-              : isLow
-              ? `🔥 Only ${spotsLeft} spot${spotsLeft === 1 ? '' : 's'} left — grab yours!`
-              : `${spotsLeft} spot${spotsLeft === 1 ? '' : 's'} remaining — don't wait!`}
+          <p className="font-mono text-[0.6rem] tracking-widest text-cream/30 uppercase">
+            {count} wonderful people coming
           </p>
         </motion.div>
 
-        {/* Name input */}
-        {!confirmed && !isFull && (
+        {/* CLOSED STATE */}
+        {isClosed ? (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 20, scale: 0.96 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
             viewport={{ once: true }}
-            transition={{ delay: 0.5 }}
-            className="mb-5"
+            transition={{ type: 'spring', damping: 20, delay: 0.3 }}
+            className="rounded-2xl p-8 mb-8"
+            style={{
+              background: 'linear-gradient(135deg, rgba(201,168,76,0.06), rgba(232,121,249,0.04))',
+              border: '1px solid rgba(201,168,76,0.25)',
+              boxShadow: '0 0 60px rgba(201,168,76,0.06)',
+            }}
           >
-            <input
-              type="text"
-              placeholder="Your name..."
-              value={name}
-              onChange={e => { setName(e.target.value); setError('') }}
-              onKeyDown={e => e.key === 'Enter' && handleComing()}
-              className="w-full px-5 py-3 rounded-xl font-cormorant text-lg text-cream placeholder-cream/30 outline-none focus:ring-1 focus:ring-gold transition-all"
+            <motion.div
+              animate={{ scale: [1, 1.08, 1] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="text-5xl mb-5"
+            >
+              🕯️
+            </motion.div>
+
+            <h3
+              className="font-playfair italic font-bold mb-3"
               style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: error ? '1px solid #ef4444' : '1px solid rgba(201,168,76,0.3)',
+                fontSize: 'clamp(1.6rem,4vw,2.5rem)',
+                background: 'linear-gradient(135deg, #c9a84c, #f0e6d3)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
               }}
-              maxLength={60}
-            />
+            >
+              RSVP Has Closed
+            </h3>
+
+            <p className="font-cormorant italic text-cream/70 text-xl leading-relaxed mb-4">
+              We're so touched by the love — our guest list is now complete.
+              <br />
+              We can't wait to celebrate with everyone who's joining us.
+            </p>
+
+            <p className="font-cormorant text-cream/45 text-lg leading-relaxed mb-6">
+              If you believe there's been a mistake or you'd like to reach out personally,
+              Jesse would love to hear from you directly.
+            </p>
+
+            <div className="flex items-center gap-3 justify-center mb-6">
+              <div className="h-px w-12" style={{ background: 'linear-gradient(90deg, transparent, rgba(201,168,76,0.4))' }} />
+              <span className="text-gold text-xs">✦</span>
+              <div className="h-px w-12" style={{ background: 'linear-gradient(90deg, rgba(201,168,76,0.4), transparent)' }} />
+            </div>
+
+            <motion.a
+              href={`https://wa.me/${PHONE_RAW}?text=${encodeURIComponent("Hi Jesse! I saw the RSVP is closed — is there any chance I can still join? 🥂")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              whileHover={{ scale: 1.04, boxShadow: '0 12px 40px rgba(37,211,102,0.25)' }}
+              whileTap={{ scale: 0.97 }}
+              className="inline-flex items-center gap-2 px-8 py-3 rounded-full font-mono text-sm tracking-widest transition-all"
+              style={{
+                background: 'rgba(37,211,102,0.1)',
+                border: '1px solid rgba(37,211,102,0.35)',
+                color: '#25d366',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+              </svg>
+              Message Jesse directly
+            </motion.a>
+          </motion.div>
+
+        ) : (
+          /* OPEN STATE */
+          <>
+            {!confirmed && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.5 }}
+                className="mb-5"
+              >
+                <input
+                  type="text"
+                  placeholder="Your name..."
+                  value={name}
+                  onChange={e => { setName(e.target.value); setError('') }}
+                  onKeyDown={e => e.key === 'Enter' && handleComing()}
+                  className="w-full px-5 py-3 rounded-xl font-cormorant text-lg text-cream placeholder-cream/30 outline-none transition-all"
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: error ? '1px solid #ef4444' : '1px solid rgba(201,168,76,0.3)',
+                  }}
+                  maxLength={60}
+                />
+                <AnimatePresence>
+                  {error && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="font-mono text-[0.7rem] tracking-wide mt-2"
+                      style={{ color: '#ef4444' }}
+                    >
+                      {error}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+              <motion.button
+                onClick={handleComing}
+                whileHover={!confirmed && !loading ? { scale: 1.05, boxShadow: '0 16px 48px rgba(201,168,76,0.5)' } : {}}
+                whileTap={!confirmed && !loading ? { scale: 0.97 } : {}}
+                disabled={loading}
+                className="px-10 py-4 rounded-full font-mono text-sm tracking-widest font-semibold transition-all"
+                style={confirmed
+                  ? { background: 'rgba(26,58,26,0.8)', color: '#4ade80', border: '1px solid #4ade80', cursor: 'default' }
+                  : { background: 'linear-gradient(135deg, #c9a84c, #e879f9, #60a5fa)', color: '#0a0a0a', border: 'none', cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }
+                }
+              >
+                {loading ? '⏳ Saving...' : confirmed ? "🥂 You're on the list!" : "✅ I'm Coming!"}
+              </motion.button>
+
+              <motion.a
+                href={`https://wa.me/${PHONE_RAW}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ borderColor: '#25d366', color: '#25d366', boxShadow: '0 0 20px rgba(37,211,102,0.2)' }}
+                className="inline-flex items-center justify-center gap-2 px-10 py-4 rounded-full border font-mono text-sm tracking-widest text-cream transition-all"
+                style={{ border: '1px solid rgba(240,230,211,0.3)' }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+                </svg>
+                WhatsApp Jesse
+              </motion.a>
+            </div>
+
             <AnimatePresence>
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
+              {confirmed && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0 }}
-                  className="font-mono text-[0.7rem] tracking-wide mt-2"
-                  style={{ color: '#ef4444' }}
+                  transition={{ type: 'spring', damping: 18 }}
+                  className="mb-8 p-4 rounded-xl"
+                  style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}
                 >
-                  {error}
-                </motion.p>
+                  <p
+                    className="font-playfair italic text-2xl"
+                    style={{ background: 'linear-gradient(135deg,#c9a84c,#e879f9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+                  >
+                    See you there, {name}! 🥂
+                  </p>
+                  <p className="font-mono text-[0.65rem] tracking-widest text-cream/40 mt-2 uppercase">
+                    Jesse has been notified
+                  </p>
+                </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
+          </>
         )}
-
-        {/* Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
-          {!isFull && (
-            <motion.button
-              onClick={handleComing}
-              whileHover={!confirmed && !loading ? { scale: 1.05, boxShadow: '0 16px 48px rgba(201,168,76,0.5)' } : {}}
-              whileTap={!confirmed && !loading ? { scale: 0.97 } : {}}
-              disabled={loading}
-              className="px-10 py-4 rounded-full font-mono text-sm tracking-widest font-semibold transition-all"
-              style={confirmed
-                ? { background: 'rgba(26,58,26,0.8)', color: '#4ade80', border: '1px solid #4ade80', cursor: 'default' }
-                : { background: 'linear-gradient(135deg, #c9a84c, #e879f9, #60a5fa)', color: '#0a0a0a', border: 'none', cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }
-              }
-            >
-              {loading ? '⏳ Saving...' : confirmed ? "🥂 You're on the list!" : "✅ I'm Coming!"}
-            </motion.button>
-          )}
-
-          <motion.a
-            href={`https://wa.me/${PHONE_RAW}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            whileHover={{ borderColor: '#25d366', color: '#25d366', boxShadow: '0 0 20px rgba(37,211,102,0.2)' }}
-            className="inline-flex items-center justify-center gap-2 px-10 py-4 rounded-full border font-mono text-sm tracking-widest text-cream transition-all"
-            style={{ border: '1px solid rgba(240,230,211,0.3)' }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
-            </svg>
-            WhatsApp Jesse
-          </motion.a>
-        </div>
-
-        <AnimatePresence>
-          {confirmed && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ type: 'spring', damping: 18 }}
-              className="mb-8 p-4 rounded-xl"
-              style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}
-            >
-              <p
-                className="font-playfair italic text-2xl"
-                style={{ background: 'linear-gradient(135deg,#c9a84c,#e879f9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
-              >
-                See you there, {name}! 🥂
-              </p>
-              <p className="font-mono text-[0.65rem] tracking-widest text-cream/40 mt-2 uppercase">
-                Jesse has been notified via Supabase
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <div className="h-px w-20 bg-gold/30 mx-auto mb-8" />
 
-        <p className="font-mono text-[0.65rem] tracking-[0.2em] text-gold uppercase mb-3">RSVP Directly</p>
+        <p className="font-mono text-[0.65rem] tracking-[0.2em] text-gold uppercase mb-3">Contact Jesse</p>
         <div
           className="inline-flex items-center gap-4 px-6 py-4 rounded-xl"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.3)' }}
         >
           <span className="font-mono text-cream text-lg tracking-wider">{PHONE_DISPLAY}</span>
-          <button
-            onClick={handleCopy}
-            className="text-gold hover:scale-110 active:scale-95 transition-transform text-lg"
-            aria-label="Copy phone number"
-          >
+          <button onClick={handleCopy} className="text-gold hover:scale-110 active:scale-95 transition-transform text-lg" aria-label="Copy">
             <AnimatePresence mode="wait">
-              <motion.span
-                key={copied ? 'check' : 'copy'}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0 }}
-              >
+              <motion.span key={copied ? 'check' : 'copy'} initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
                 {copied ? '✅' : '📋'}
               </motion.span>
             </AnimatePresence>
           </button>
         </div>
 
-        {/* Admin link */}
         <div className="mt-8">
-          <a
-            href="/admin"
-            className="font-mono text-[0.6rem] tracking-widest text-cream/20 hover:text-cream/40 transition-colors"
-          >
+          <a href="/admin" className="font-mono text-[0.6rem] tracking-widest text-cream/20 hover:text-cream/40 transition-colors">
             admin ›
           </a>
         </div>
